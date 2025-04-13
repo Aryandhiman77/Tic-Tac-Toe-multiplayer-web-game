@@ -1,0 +1,10 @@
+:root{
+  background-color: gray;
+}
+.room-btn{
+  margin: 50px;
+  padding: 23px;
+  background-color: black;
+  color: white;
+  border-radius: 10px;
+}
