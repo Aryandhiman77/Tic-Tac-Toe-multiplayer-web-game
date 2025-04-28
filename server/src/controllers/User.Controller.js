@@ -3,8 +3,9 @@ const bcrypt = require("bcryptjs");
 const { validationResult, body } = require("express-validator");
 const User = require("../db/modals/User.Model"); // adjust based on your structure
 const jwtSecret = process.env.JWT_SECRET || "yourFallbackSecret";
-
+const mailSender = require('../utils/nodeMailer')
 const userLogin = async (req, res) => {
+  console.log("login request from user..");
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
@@ -21,6 +22,7 @@ const userLogin = async (req, res) => {
 
     const user = await User.findOne({ email });
     if (!user) return res.status(401).json({ message: "Invalid credentials." });
+    if(user.status === "active") return res.status(400).json({ message: "User had already login." });
 
     const isPassTrue = await bcrypt.compare(password, user.password);
     if (!isPassTrue)
@@ -28,11 +30,11 @@ const userLogin = async (req, res) => {
 
     const payload = { id: user.id };
 
-    const authtoken = JWT.sign(payload, jwtSecret, { expiresIn: "2h" });
-    const refreshtoken = JWT.sign(payload, jwtSecret, { expiresIn: "48h" });
+    const authToken = JWT.sign(payload, jwtSecret, { expiresIn: "2h" });
+    const refreshToken = JWT.sign(payload, jwtSecret, { expiresIn: "48h" });
 
-    user.refreshToken = refreshtoken;
-    user.status = "active";
+    user.refreshToken = refreshToken;
+    // user.status = "active";
     await user.save();
 
     res.status(200).json({
@@ -41,9 +43,10 @@ const userLogin = async (req, res) => {
       user: {
         username: user.username,
         email: user.email,
+        userid:user.gameid
       },
-      authtoken,
-      refreshtoken,
+      authToken,
+      refreshToken,
     });
   } catch (error) {
     console.error("Login Error:", error);
@@ -81,32 +84,34 @@ const userRegister = async (req, res) => {
     const salt = await bcrypt.genSalt(10);
     const enc_pass = await bcrypt.hash(password, salt);
 
-    const payload = {
-      username,
-      email,
-    };
-
-    const authtoken = JWT.sign(payload, jwtSecret, { expiresIn: "2h" });
-    const refreshToken = JWT.sign(payload, jwtSecret, { expiresIn: "48h" });
+    
 
     const saveUser = await User.create({
       username,
       email,
       password: enc_pass,
-      refreshToken,
-      status: "active",
     });
+    console.log(saveUser);
+   
 
     if (saveUser) {
+    const payload = { id: saveUser.id };
+    const authtoken = JWT.sign(payload, jwtSecret, { expiresIn: "2h" });
+    const refreshtoken = JWT.sign(payload, jwtSecret, { expiresIn: "48h" });
+    saveUser.refreshToken = refreshtoken;
+    saveUser.authToken = authtoken;
+
       return res.status(200).json({
         success: true,
         message: "Registration successful.",
         user: {
           username: saveUser.username,
           email: saveUser.email,
+          userid:saveUser.gameid
         },
-        authtoken,
-        refreshToken,
+        authToken:authtoken,
+        refreshToken:refreshtoken,
+        
       });
     } else {
       return res
@@ -149,9 +154,11 @@ const logoutUser = async (req, res) => {
       .json({ message: "Internal Server Error", error: error.message });
   }
 };
-const refreshToken = async (req, res) => {
+const refreshTokens = async (req, res) => {
+  console.log("providing tokens..");
     try {
-      const token = req.body.refreshToken;
+      const token = req.body?.refreshToken;
+      console.log('got token : ',token);
       if (!token) {
         return res.status(400).json({ message: "Refresh token is required." });
       }
@@ -160,7 +167,7 @@ const refreshToken = async (req, res) => {
         if (error) {
           return res.status(401).json({
             success: false,
-            message: "Invalid refresh token.",
+            message: error.name,
           });
         }
   
@@ -181,19 +188,20 @@ const refreshToken = async (req, res) => {
         const newAccessToken = JWT.sign(payload, jwtSecret, {
           expiresIn: "2h",
         });
-        const newRefreshToken = JWT.sign(payload, jwtSecret, {
+        const newrefreshToken = JWT.sign(payload, jwtSecret, {
           expiresIn: "48h",
         });
   
         // Update new refresh token in DB
-        user.refreshToken = newRefreshToken;
-        await user.save();
+        user.refreshToken = newrefreshToken;
+        const savedToken = await user.save();
+        console.log('saved token in db');
   
         return res.status(200).json({
           success: true,
           message: "Token refreshed successfully.",
-          authtoken: newAccessToken,
-          refreshToken: newRefreshToken,
+          authToken: newAccessToken,
+          refreshToken: newrefreshToken,
         });
       });
     } catch (error) {
@@ -205,5 +213,35 @@ const refreshToken = async (req, res) => {
       });
     }
   };
-  
-module.exports = { userLogin, userRegister, refreshToken, logoutUser };
+  const forgotPass = (req,res)=>{
+      try {
+        const {email} = req.body;
+        if (!email) {(400).json({
+            success: false,
+            message: "Email address required.",
+          });
+        }
+          const mailobj= {
+          from:"TicTacToe <aryandhiman015@gmail.com>",
+          to:email,
+          subject:"Tic Tac Toe password reset",
+          html:`
+          <h1 style="text-align:center">Your Tic Tac Toe multiplayer password reset is:</h1><br>
+          <p style="text-align:center"></p>
+          `
+        }
+        mailSender({...mailobj});
+        console.log('mail sent successfully.')
+        
+
+      } catch (error) {
+        console.error("Forgot password Error:", error);
+        return res.status(500).json({
+          success: false,
+          message: "Internal Server Error",
+          error: error.message,
+        });
+      }
+  } 
+
+module.exports = { userLogin, userRegister, refreshTokens, logoutUser ,forgotPass};

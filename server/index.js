@@ -3,7 +3,11 @@ const http = require("http");
 const { Server } = require("socket.io");
 const cors = require("cors");
 const Router = require("../server/src/routes");
+const SocketMiddleware = require("./src/middlewares/Socket.Middleware");
+const User = require('./src/db/modals/User.Model');
+const Friend = require("./src/db/modals/Friend.Model");
 require("./src/db/connection");
+// let loginMiddleware = require('../server/src/middlewares/Login.Middleware')
 const app = express();
 app.use(cors());
 app.use(express.json());
@@ -16,13 +20,17 @@ const io = require("socket.io")(server, {
     methods: ["GET", "POST"],
   },
 });
+io.use(SocketMiddleware);
 
 const rooms = {}; // Format: { roomId: { players: [], chat: [], tossDone: false } }
 const playerRoomMap = {}; // Format: { socketId: roomId }
 
-io.on("connection", (socket) => {
-  console.log("User connected:", socket.id);
 
+io.on("connection", (socket) => {
+  console.log(socket.username," connected with socket id :", socket.id);
+  socket.broadcast.emit("checkOnlineUser",{userid:socket.gameid});
+  console.log(socket.id);
+  
   socket.on("createRoom", (callback) => {
     const roomId = Math.random().toString(36).substr(2, 6).toUpperCase();
     rooms[roomId] = { players: [socket.id], chat: [], tossDone: false };
@@ -49,20 +57,45 @@ io.on("connection", (socket) => {
   socket.on("sendMessage", ({ roomId, message }) => {
     io.to(roomId).emit("receiveMessage", message);
   });
-
-
+  let Roomhost;
+  let JoinedNode;
   socket.on("toss", ({ roomId, selection }) => {
-    console.log(roomId,selection,socket.id)
+    Roomhost = {id:rooms[roomId]?.players[0]}; //Player1
+    JoinedNode = {id:rooms[roomId]?.players[1]}; //Player2
+    
+    if(JoinedNode.id ===socket.id){
+      io.to(Roomhost.id).emit("opponent", {username:socket.username,selection});
+    }
+    if(Roomhost.id ===socket.id){
+      io.to(JoinedNode.id).emit("opponent",{username:socket.username,selection});
+    }
   });
-  
-  
+  socket.on("tossResult", ({ roomId, winner }) => {
+    console.log(winner);
+    io.to(roomId).emit("tossWinner",winner)
+  });
 
   socket.on("makeMove", ({ roomId, board }) => {
     io.to(roomId).emit("updateBoard", board);
   });
 
-  socket.on("disconnect", () => {
+  socket.on('updateStatus',async()=>{
+    console.log("updating status.");
+    const user = await User.findById(socket.userid);
+    console.log(user);
+    user.status = "active";
+    user.save();
+    io.to(socket.id).emit("updatedStatus","online");
+  })
+
+
+  socket.on("disconnect", async() => {
+    socket.broadcast.emit("checkOfflineUser",{userid:socket.gameid});
     console.log("User disconnected:", socket.id);
+    const user = await User.findById(socket.userid);
+    user.status = "inactive";
+    user.save();
+    io.to(socket.id).emit("updatedStatus","offline");
     const roomId = playerRoomMap[socket.id];
 
     if (roomId && rooms[roomId]) {

@@ -11,8 +11,8 @@ const LoginValidations = [
 ];
 
 const RegistrationValidations = [
-  body('username', "Username must be 5-20 characters.")
-    .isLength({ min: 5, max: 20 }),
+  body('username', "Username must be 3-20 characters.")
+    .isLength({ min: 3, max: 20 }),
 
   body('email', "Please enter a valid email.")
     .isEmail()

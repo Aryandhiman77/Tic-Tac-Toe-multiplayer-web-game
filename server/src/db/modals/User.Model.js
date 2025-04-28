@@ -1,8 +1,14 @@
 const mongoose = require('mongoose')
+const nanoid = require('../../utils/gameIdGenerator')
 const userSchema = new mongoose.Schema ({
     username:{
         type:String,
         required:true
+    },
+    gameid:{
+        type:String,
+        default:()=>nanoid(),
+        unique:true,
     },
     email:{
         type:String,
@@ -15,7 +21,8 @@ const userSchema = new mongoose.Schema ({
     },
     status:{
         type:String,
-        enum:["active","inactive"]
+        enum:["active","inactive"],
+        default:"active"
     },
     refreshToken:{
         type:String,
@@ -23,7 +30,8 @@ const userSchema = new mongoose.Schema ({
     profile:{
         type:String,
         default:'/defaultProfile/profile.jpg'
-    }
+    },
+   
 })
 
 const User = mongoose.model('user',userSchema)
