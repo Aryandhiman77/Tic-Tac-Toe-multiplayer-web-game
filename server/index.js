@@ -4,7 +4,7 @@ const { Server } = require("socket.io");
 const cors = require("cors");
 const Router = require("../server/src/routes");
 const SocketMiddleware = require("./src/middlewares/Socket.Middleware");
-const User = require('./src/db/modals/User.Model');
+const User = require("./src/db/modals/User.Model");
 const Friend = require("./src/db/modals/Friend.Model");
 require("./src/db/connection");
 // let loginMiddleware = require('../server/src/middlewares/Login.Middleware')
@@ -24,13 +24,34 @@ io.use(SocketMiddleware);
 
 const rooms = {}; // Format: { roomId: { players: [], chat: [], tossDone: false } }
 const playerRoomMap = {}; // Format: { socketId: roomId }
-
+const playerSocketMap = {};
 
 io.on("connection", (socket) => {
-  console.log(socket.username," connected with socket id :", socket.id);
-  socket.broadcast.emit("checkOnlineUser",{userid:socket.gameid});
+  console.log(socket.username, " connected with socket id :", socket.id);
+  socket.broadcast.emit("checkOnlineUser", { userid: socket.gameid });
   console.log(socket.id);
-  
+  playerSocketMap[socket.gameid] = socket.id;
+
+  console.log(playerSocketMap);
+
+  socket.on("challengeFriend", (friendgameid) => {
+    const roomId = socket.gameid;
+    rooms[roomId] = { players: [socket.id], chat: [], tossDone: false };
+    playerRoomMap[socket.id] = roomId;
+    socket.join(roomId);
+    const friendSocket = playerSocketMap[friendgameid];
+    // console.log("friend socket", friendSocket);
+    console.log(roomId);
+    io.to(friendSocket).emit("liveRoomRequests", {
+      roomId,
+      friend: {
+        id: socket.gameid,
+        username: socket.username,
+        profile: socket.profile,
+      },
+    });
+  });
+
   socket.on("createRoom", (callback) => {
     const roomId = Math.random().toString(36).substr(2, 6).toUpperCase();
     rooms[roomId] = { players: [socket.id], chat: [], tossDone: false };
@@ -45,57 +66,82 @@ io.on("connection", (socket) => {
       room.players.push(socket.id);
       playerRoomMap[socket.id] = roomId;
       socket.join(roomId);
-      // Track which room this socket is in
       socket.roomId = roomId;
+  
+      const hostSocketId = room.players[0]; // the one who created the room
+      const hostSocket = io.sockets.sockets.get(hostSocketId);
+  
+      // Emit to both players
+      io.to(roomId).emit("playerJoined", {
+        host: {
+          username: hostSocket?.username,
+          profile: hostSocket?.profile,
+          gameid: hostSocket?.gameid
+        },
+        joined: {
+          username: socket.username,
+          profile: socket.profile,
+          gameid: socket.gameid
+        }
+      });
+  
       callback({ success: true });
-      io.to(roomId).emit("playerJoined");
     } else {
       callback({ success: false, message: "Room full or not found" });
     }
   });
+  
 
   socket.on("sendMessage", ({ roomId, message }) => {
     io.to(roomId).emit("receiveMessage", message);
   });
   let Roomhost;
   let JoinedNode;
-  socket.on("toss", ({ roomId, selection }) => {
-    Roomhost = {id:rooms[roomId]?.players[0]}; //Player1
-    JoinedNode = {id:rooms[roomId]?.players[1]}; //Player2
-    
-    if(JoinedNode.id ===socket.id){
-      io.to(Roomhost.id).emit("opponent", {username:socket.username,selection});
-    }
-    if(Roomhost.id ===socket.id){
-      io.to(JoinedNode.id).emit("opponent",{username:socket.username,selection});
-    }
+
+  socket.on("toss", (roomId) => {
+    console.log(roomId)
+    const room = rooms[roomId];
+  
+    if (!room || room.players.length !== 2) return;
+  
+    const randomIndex = Math.floor(Math.random() * 2);
+    const winnerSocketId = room.players[randomIndex];
+    const winnerSocket = io.sockets.sockets.get(winnerSocketId);
+  
+    const winner = (winnerSocket?.username === rooms[roomId].hostUsername) ? 'Player1' : 'Player2';
+  
+    io.to(roomId).emit("tossWinner", winner);
   });
-  socket.on("tossResult", ({ roomId, winner }) => {
-    console.log(winner);
-    io.to(roomId).emit("tossWinner",winner)
-  });
+  
 
   socket.on("makeMove", ({ roomId, board }) => {
     io.to(roomId).emit("updateBoard", board);
   });
 
-  socket.on('updateStatus',async()=>{
+  socket.on("updateStatus", async () => {
     console.log("updating status.");
-    const user = await User.findById(socket.userid);
-    console.log(user);
+    const user = await User.findById(socket?.userid);
     user.status = "active";
-    user.save();
-    io.to(socket.id).emit("updatedStatus","online");
-  })
+    await user.save();
+    io.to(socket.id).emit("updatedStatus", "online");
+  });
+  socket.on("PlayerLeft", () => {
+    const friendsocketid = Object.entries(playerSocketMap)?.find(
+      (gameid) => gameid[0] !== socket.gameid
+    )[1];
+    io.to(friendsocketid).emit(
+      "listenPlayerLeft",
+      "The other player has left."
+    );
+  });
 
-
-  socket.on("disconnect", async() => {
-    socket.broadcast.emit("checkOfflineUser",{userid:socket.gameid});
+  socket.on("disconnect", async () => {
+    socket.broadcast.emit("checkOfflineUser", { userid: socket.gameid });
     console.log("User disconnected:", socket.id);
     const user = await User.findById(socket.userid);
     user.status = "inactive";
     user.save();
-    io.to(socket.id).emit("updatedStatus","offline");
+    io.to(socket.id).emit("updatedStatus", "offline");
     const roomId = playerRoomMap[socket.id];
 
     if (roomId && rooms[roomId]) {

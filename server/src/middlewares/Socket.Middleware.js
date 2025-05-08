@@ -14,11 +14,11 @@ module.exports =async function (socket, next) {
   try {
     const user = jwt.verify(token, jwtSecret);
     const userDetails = await User.findById(user?.id);
-    console.log(userDetails);
     socket.username = userDetails?.username; // Attach user info if needed
     socket.email = userDetails?.email; // Attach user info if needed
     socket.userid = userDetails?.id; // Attach user info if needed
     socket.gameid = userDetails?.gameid; // Attach user info if needed
+    socket.profile = userDetails?.profile;
     next();
   } catch (err) {
     console.log("JWT Error:", err.message);

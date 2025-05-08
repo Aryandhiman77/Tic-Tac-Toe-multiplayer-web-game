@@ -1,5 +1,7 @@
 const mongoose = require('mongoose')
-const nanoid = require('../../utils/gameIdGenerator')
+const nanoid = require('nanoid');
+const nanoidtendigit = require('../../utils/gameIdGenerator')
+const crypto = require('crypto');
 const userSchema = new mongoose.Schema ({
     username:{
         type:String,
@@ -7,7 +9,7 @@ const userSchema = new mongoose.Schema ({
     },
     gameid:{
         type:String,
-        default:()=>nanoid(),
+        default:()=>nanoidtendigit(),
         unique:true,
     },
     email:{
@@ -31,8 +33,22 @@ const userSchema = new mongoose.Schema ({
         type:String,
         default:'/defaultProfile/profile.jpg'
     },
+    passwordResetCode:String,
+    passwordResetCodeExpires:Date,
+    passwordChangedAt:Date,
+    
+
    
 })
+userSchema.methods.createResetPasswordCode = function(){
+    const generateResetCode = nanoid.customAlphabet('1234567890', 6);
+    const resetCode = generateResetCode();
+    this.passwordResetCode = crypto.createHash('sha256').update(resetCode).digest('hex');
+    this.passwordResetCodeExpires = Date.now() + 10 * 60 * 1000; // 10 minutes
+    console.log(resetCode,this.passwordResetCode);
+    return resetCode;
+}
+
 
 const User = mongoose.model('user',userSchema)
 module.exports = User

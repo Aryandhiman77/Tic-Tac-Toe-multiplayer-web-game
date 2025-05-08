@@ -1,8 +1,8 @@
 const mongoose = require('mongoose')
 const userSchema = new mongoose.Schema ({
     userid:{
-        type:String,
-        required:true
+        type: mongoose.Schema.Types.ObjectId,
+        ref:'user'
     },
     friends: [{
         type: mongoose.Schema.Types.ObjectId,

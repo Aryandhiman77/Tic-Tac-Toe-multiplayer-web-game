@@ -3,9 +3,9 @@ const bcrypt = require("bcryptjs");
 const { validationResult, body } = require("express-validator");
 const User = require("../db/modals/User.Model"); // adjust based on your structure
 const jwtSecret = process.env.JWT_SECRET || "yourFallbackSecret";
-const mailSender = require('../utils/nodeMailer')
+const mailSender = require("../utils/nodeMailer");
+const crypto = require("crypto");
 const userLogin = async (req, res) => {
-  console.log("login request from user..");
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
@@ -22,8 +22,7 @@ const userLogin = async (req, res) => {
 
     const user = await User.findOne({ email });
     if (!user) return res.status(401).json({ message: "Invalid credentials." });
-    if(user.status === "active") return res.status(400).json({ message: "User had already login." });
-
+    if (user.status === "active") return res.status(400).json({ message: "User had already login." });
     const isPassTrue = await bcrypt.compare(password, user.password);
     if (!isPassTrue)
       return res.status(401).json({ message: "Invalid credentials." });
@@ -43,7 +42,7 @@ const userLogin = async (req, res) => {
       user: {
         username: user.username,
         email: user.email,
-        userid:user.gameid
+        userid: user.gameid,
       },
       authToken,
       refreshToken,
@@ -59,7 +58,7 @@ const userLogin = async (req, res) => {
 const userRegister = async (req, res) => {
   console.log("registration request came.");
   try {
-    console.log(req.body)
+    console.log(req.body);
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       return res.status(400).json({ errors: errors.array() });
@@ -84,22 +83,20 @@ const userRegister = async (req, res) => {
     const salt = await bcrypt.genSalt(10);
     const enc_pass = await bcrypt.hash(password, salt);
 
-    
-
     const saveUser = await User.create({
       username,
       email,
       password: enc_pass,
     });
     console.log(saveUser);
-   
 
     if (saveUser) {
-    const payload = { id: saveUser.id };
-    const authtoken = JWT.sign(payload, jwtSecret, { expiresIn: "2h" });
-    const refreshtoken = JWT.sign(payload, jwtSecret, { expiresIn: "48h" });
-    saveUser.refreshToken = refreshtoken;
-    saveUser.authToken = authtoken;
+      const payload = { id: saveUser.id };
+      const authtoken = JWT.sign(payload, jwtSecret, { expiresIn: "2h" });
+      const refreshtoken = JWT.sign(payload, jwtSecret, { expiresIn: "48h" });
+      saveUser.refreshToken = refreshtoken;
+      saveUser.authToken = authtoken;
+      await saveUser.save();
 
       return res.status(200).json({
         success: true,
@@ -107,11 +104,10 @@ const userRegister = async (req, res) => {
         user: {
           username: saveUser.username,
           email: saveUser.email,
-          userid:saveUser.gameid
+          userid: saveUser.gameid,
         },
-        authToken:authtoken,
-        refreshToken:refreshtoken,
-        
+        authToken: authtoken,
+        refreshToken: refreshtoken,
       });
     } else {
       return res
@@ -156,92 +152,177 @@ const logoutUser = async (req, res) => {
 };
 const refreshTokens = async (req, res) => {
   console.log("providing tokens..");
-    try {
-      const token = req.body?.refreshToken;
-      console.log('got token : ',token);
-      if (!token) {
-        return res.status(400).json({ message: "Refresh token is required." });
+  try {
+    const token = req.body?.refreshToken;
+    console.log("got token : ", token);
+    if (!token) {
+      return res.status(400).json({ message: "Refresh token is required." });
+    }
+
+    JWT.verify(token, jwtSecret, async (error, decoded) => {
+      if (error) {
+        return res.status(401).json({
+          success: false,
+          message: error.name,
+        });
       }
-  
-      JWT.verify(token, jwtSecret, async (error, decoded) => {
-        if (error) {
-          return res.status(401).json({
-            success: false,
-            message: error.name,
-          });
-        }
-  
-        const user = await User.findById(decoded.id); // finding user by id  in db
-        if (!user) {
-          return res.status(404).json({ message: "User not found." });
-        }
-  
-        // Compare with db refresh token
-        if (user.refreshToken !== token) {
-          return res.status(403).json({
-            success: false,
-            message: "Refresh token mismatch.",
-          });
-        }
-  
-        const payload = { id: user.id }; 
-        const newAccessToken = JWT.sign(payload, jwtSecret, {
-          expiresIn: "2h",
+
+      const user = await User.findById(decoded.id); // finding user by id  in db
+      if (!user) {
+        return res.status(404).json({ message: "User not found." });
+      }
+
+      // Compare with db refresh token
+      if (user.refreshToken !== token) {
+        return res.status(403).json({
+          success: false,
+          message: "Refresh token mismatch.",
         });
-        const newrefreshToken = JWT.sign(payload, jwtSecret, {
-          expiresIn: "48h",
-        });
-  
-        // Update new refresh token in DB
-        user.refreshToken = newrefreshToken;
-        const savedToken = await user.save();
-        console.log('saved token in db');
-  
-        return res.status(200).json({
-          success: true,
-          message: "Token refreshed successfully.",
-          authToken: newAccessToken,
-          refreshToken: newrefreshToken,
-        });
+      }
+
+      const payload = { id: user.id };
+      const newAccessToken = JWT.sign(payload, jwtSecret, {
+        expiresIn: "2h",
       });
-    } catch (error) {
-      console.error("Token Error:", error);
-      return res.status(500).json({
+      const newrefreshToken = JWT.sign(payload, jwtSecret, {
+        expiresIn: "48h",
+      });
+
+      // Update new refresh token in DB
+      user.refreshToken = newrefreshToken;
+      const savedToken = await user.save();
+      console.log("saved token in db");
+
+      return res.status(200).json({
+        success: true,
+        message: "Token refreshed successfully.",
+        authToken: newAccessToken,
+        refreshToken: newrefreshToken,
+      });
+    });
+  } catch (error) {
+    console.error("Token Error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Internal Server Error",
+      error: error.message,
+    });
+  }
+};
+const forgotPass = async (req, res) => {
+  console.log("forgot password");
+  try {
+    // 1. GET USER POSTED EMAIL
+    const { email } = req.body;
+    if (!email) {
+      return res.status(404).json({
         success: false,
-        message: "Internal Server Error",
-        error: error.message,
+        message: "Email is required.",
       });
     }
-  };
-  const forgotPass = (req,res)=>{
-      try {
-        const {email} = req.body;
-        if (!email) {(400).json({
-            success: false,
-            message: "Email address required.",
-          });
-        }
-          const mailobj= {
-          from:"TicTacToe <aryandhiman015@gmail.com>",
-          to:email,
-          subject:"Tic Tac Toe password reset",
-          html:`
-          <h1 style="text-align:center">Your Tic Tac Toe multiplayer password reset is:</h1><br>
-          <p style="text-align:center"></p>
-          `
-        }
-        mailSender({...mailobj});
-        console.log('mail sent successfully.')
-        
-
-      } catch (error) {
-        console.error("Forgot password Error:", error);
-        return res.status(500).json({
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found.",
+      });
+    }
+    console.log(user);
+    //  2. GENERATE A RANDOM REST TOKEN
+    const resetCode = user.createResetPasswordCode();
+    await user.save();
+    console.log(email);
+    // 3. SEND THE TOKEN BACK TO THE USER
+    const mailobj = {
+      from: "TicTacToe <aryandhiman015@gmail.com>",
+      to: email,
+      subject: "Tic Tac Toe password reset",
+      html: `
+          <h1>We have received a password reset request. Your Tic Tac Toe multiplayer password Reset Code is: ${resetCode}</h1><br>
+          <p>This reset code will be valid for only 10 minutes.</p>
+          `,
+    };
+    const ismailSent = await mailSender({ ...mailobj });
+    if (ismailSent) {
+      res.status(200).json({
+        success: true,
+        message: "Reset Code sent to your email, please enter the 6 digit otp.",
+      });
+    } else {
+      res
+        .status(400)
+        .json({ success: false, message: "Cannot send reset code." });
+    }
+  } catch (error) {
+    console.error("Forgot password Error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Internal Server Error",
+      error: error.message,
+    });
+  }
+};
+const resetPassword = async (req, res) => {
+  console.log("resetting password");
+  const { token } = req.params;
+  const { password } = req.body;
+  console.log(token,password);
+  try {
+    // 1. SEND ERROR IF NO PASSWORD ENTERED -VALIDATION
+    if (!password) {
+      return res
+        .status(400)
+        .send({ success: false, message: "New password is required." });
+    }
+    // 2. ENCRYPTED THE TOKEN GOT FROM USER AND FIND THE USER WHERE ENCRYPTED TOKEN MATCHES
+    const encToken = crypto.createHash("sha256").update(token).digest("hex");
+    const user = await User.findOne({
+      passwordResetCode: encToken,
+      passwordResetCodeExpires: { $gt: Date.now() },
+    });
+    if (!user) {
+      return res
+        .status(400)
+        .send({
           success: false,
-          message: "Internal Server Error",
-          error: error.message,
+          message: "Password Reset Code is invalid or has expired.",
         });
-      }
-  } 
+    }
 
-module.exports = { userLogin, userRegister, refreshTokens, logoutUser ,forgotPass};
+    //3. ENCRYPT THE NEW PASSWORD AND SAVE THE NEW ENCRYPTED PASSWORD TO DB
+    const salt = await bcrypt.genSalt(10);
+    const enc_pass = await bcrypt.hash(password, salt);
+    user.password = enc_pass;
+    user.passwordResetCode = undefined;
+    user.passwordResetCodeExpires = undefined;
+    user.passwordChangedAt = Date.now();
+
+    const saved = await user.save();
+    if (saved) {
+      return res
+        .status(200)
+        .send({ success: true, message: "Password changed successfully." });
+    }
+    return res
+      .status(400)
+      .send({
+        success: false,
+        message: "Cannot change password due to some technical issues.",
+      });
+  } catch (error) {
+    console.error("Forgot password Error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Internal Server Error"
+    });
+  }
+};
+
+module.exports = {
+  userLogin,
+  userRegister,
+  refreshTokens,
+  logoutUser,
+  forgotPass,
+  resetPassword,
+};

@@ -9,6 +9,11 @@ const userSchema = new mongoose.Schema ({
         type:String,
         required:true,
     },
+    friendUserid:{
+        type:mongoose.SchemaTypes.ObjectId,
+        required:true,
+        ref:'user',
+    },
     status:{
         type:String,
         enum:["pending","accepted","rejected"],
