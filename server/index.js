@@ -6,9 +6,11 @@ const Router = require("../server/src/routes");
 const SocketMiddleware = require("./src/middlewares/Socket.Middleware");
 const User = require("./src/db/modals/User.Model");
 const Friend = require("./src/db/modals/Friend.Model");
+const path = require("path");
 require("./src/db/connection");
-// let loginMiddleware = require('../server/src/middlewares/Login.Middleware')
+
 const app = express();
+app.use(express.static(__dirname+path.join('/public/uploads'))); // to serve static files
 app.use(cors());
 app.use(express.json());
 app.use("/api/", Router);

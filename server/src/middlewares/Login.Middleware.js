@@ -3,26 +3,26 @@ const User = require("../db/modals/User.Model");
 const jwtSecret = process.env.JWT_SECRET || "yourFallbackSecret";
 
 module.exports = async function LoginMiddleware(req, res, next) {
-
   const token = req.header("Authorization")?.split(" ")[1];
-  if (!token) return res.status(401).json({ message: "Access denied. No token provided." });
+  if (!token)
+    return res
+      .status(401)
+      .json({ message: "Access denied. No token provided." });
 
   try {
+    // 1. DECODE THE USER ID
     const decoded = jwt.verify(token, jwtSecret);
-    if(decoded){
+    if (decoded) {
       req.user = decoded;
-
+      // 2. GET THE USER INFO FROM DB AND SET IT INTO REQUEST OBJECT
       const userinfo = await User.findById(decoded.id);
-      console.log(userinfo);
       req.mygameid = userinfo.gameid;
     }
-
     next();
   } catch (error) {
-    console.log(error.name);
+    // 3. IF TOKEN ERROR, THROUGH 404
     if (error.name === "TokenExpiredError") {
-      return res.status(401).json({success:false,message:error.name});
+      return res.status(401).json({ success: false, message: error.name });
     }
-   
   }
 };

@@ -12,23 +12,24 @@ module.exports =async function (socket, next) {
 
   // verify the token, etc.
   try {
+    //1. DECORDED TOKEN TO GET USERINFO FROM DB
     const user = jwt.verify(token, jwtSecret);
     const userDetails = await User.findById(user?.id);
-    socket.username = userDetails?.username; // Attach user info if needed
-    socket.email = userDetails?.email; // Attach user info if needed
-    socket.userid = userDetails?.id; // Attach user info if needed
-    socket.gameid = userDetails?.gameid; // Attach user info if needed
+
+    //2.SET THE IMPORTANT DATA INTO SOCKET AND CONTINUE
+    socket.username = userDetails?.username; 
+    socket.email = userDetails?.email; 
+    socket.userid = userDetails?.id; 
+    socket.gameid = userDetails?.gameid; 
     socket.profile = userDetails?.profile;
     next();
   } catch (err) {
-    console.log("JWT Error:", err.message);
-    console.log(err.name);
-    // return res.status(401).json({ message: "token expired", success: false });
+    console.log("SOCKET MIDDLEWARE ERROR :", err);
+
+    // 3. HANDLE IF TOKEN EXPIRES OR INVALIDATES  
     if (err.name === "TokenExpiredError") {
       return next(new Error(err.name));
     }
     return next(new Error("InvalidToken"));
-  
-    // return io.to(socket.id).emit("sktError", err.message);
   }
 };

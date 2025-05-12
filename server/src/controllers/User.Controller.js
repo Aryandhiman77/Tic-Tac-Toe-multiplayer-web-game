@@ -3,15 +3,17 @@ const bcrypt = require("bcryptjs");
 const { validationResult, body } = require("express-validator");
 const User = require("../db/modals/User.Model"); // adjust based on your structure
 const jwtSecret = process.env.JWT_SECRET || "yourFallbackSecret";
-const mailSender = require("../utils/nodeMailer");
+// const mailSender = require("../utils/nodeMailer");
 const crypto = require("crypto");
+const multer = require("multer");
 const userLogin = async (req, res) => {
   try {
+    // 1. CHECKING EXPRESS VALIDATOR ERRORS
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       return res.status(400).json({ errors: errors.array() });
     }
-
+    //2. GET USER EMAIL, PASSWORD
     const { email, password } = req.body;
 
     if (!email || !password) {
@@ -19,21 +21,26 @@ const userLogin = async (req, res) => {
         .status(400)
         .json({ message: "Email and password are required." });
     }
-
+    //3. CHECK IF USER EXISTS WITH PROVIDED EMAIL
     const user = await User.findOne({ email });
     if (!user) return res.status(401).json({ message: "Invalid credentials." });
-    if (user.status === "active") return res.status(400).json({ message: "User had already login." });
+
+    //4. IF USER EXISTS, CHECK IF USER ALREADY USING THE APPLICATION RETURN BAD REQUEST
+    if (user.status === "active")
+      return res.status(400).json({ message: "User had already login." });
+
+    //5. COMPARE THE PLAIN PASSWORD WITH ENCODED DB PASSWORD USING BCRYPT JS
     const isPassTrue = await bcrypt.compare(password, user.password);
     if (!isPassTrue)
       return res.status(401).json({ message: "Invalid credentials." });
-
     const payload = { id: user.id };
 
+    //6.IF BCRYPT PASSWORD COMPARISON RETURNS TRUE, GENERATE AUTHENTICATION AND REFRESH TOKENS, SAVE REFRESH TOKEN
     const authToken = JWT.sign(payload, jwtSecret, { expiresIn: "2h" });
     const refreshToken = JWT.sign(payload, jwtSecret, { expiresIn: "48h" });
 
     user.refreshToken = refreshToken;
-    // user.status = "active";
+    // user.status = "active"; SOCKET CONNECTION WILL MAKE USER ACTIVE AND INACTIVE FOR REAL TIME STATUS
     await user.save();
 
     res.status(200).json({
@@ -43,6 +50,7 @@ const userLogin = async (req, res) => {
         username: user.username,
         email: user.email,
         userid: user.gameid,
+        profile: user.profile,
       },
       authToken,
       refreshToken,
@@ -105,6 +113,7 @@ const userRegister = async (req, res) => {
           username: saveUser.username,
           email: saveUser.email,
           userid: saveUser.gameid,
+          profile: saveUser.profile,
         },
         authToken: authtoken,
         refreshToken: refreshtoken,
@@ -228,10 +237,10 @@ const forgotPass = async (req, res) => {
       });
     }
     console.log(user);
-    //  2. GENERATE A RANDOM REST TOKEN
+    //  2. GENERATE A RANDOM RESET TOKEN
     const resetCode = user.createResetPasswordCode();
     await user.save();
-    console.log(email);
+
     // 3. SEND THE TOKEN BACK TO THE USER
     const mailobj = {
       from: "TicTacToe <aryandhiman015@gmail.com>",
@@ -266,13 +275,13 @@ const resetPassword = async (req, res) => {
   console.log("resetting password");
   const { token } = req.params;
   const { password } = req.body;
-  console.log(token,password);
+  console.log(token, password);
   try {
     // 1. SEND ERROR IF NO PASSWORD ENTERED -VALIDATION
     if (!password) {
       return res
         .status(400)
-        .send({ success: false, message: "New password is required." });
+        .json({ success: false, message: "New password is required." });
     }
     // 2. ENCRYPTED THE TOKEN GOT FROM USER AND FIND THE USER WHERE ENCRYPTED TOKEN MATCHES
     const encToken = crypto.createHash("sha256").update(token).digest("hex");
@@ -281,12 +290,10 @@ const resetPassword = async (req, res) => {
       passwordResetCodeExpires: { $gt: Date.now() },
     });
     if (!user) {
-      return res
-        .status(400)
-        .send({
-          success: false,
-          message: "Password Reset Code is invalid or has expired.",
-        });
+      return res.status(400).json({
+        success: false,
+        message: "Password Reset Code is invalid or has expired.",
+      });
     }
 
     //3. ENCRYPT THE NEW PASSWORD AND SAVE THE NEW ENCRYPTED PASSWORD TO DB
@@ -301,23 +308,51 @@ const resetPassword = async (req, res) => {
     if (saved) {
       return res
         .status(200)
-        .send({ success: true, message: "Password changed successfully." });
+        .json({ success: true, message: "Password changed successfully." });
     }
-    return res
-      .status(400)
-      .send({
-        success: false,
-        message: "Cannot change password due to some technical issues.",
-      });
+    return res.status(400).json({
+      success: false,
+      message: "Cannot change password due to some technical issues.",
+    });
   } catch (error) {
     console.error("Forgot password Error:", error);
     return res.status(500).json({
       success: false,
-      message: "Internal Server Error"
+      message: "Internal Server Error",
     });
   }
 };
 
+const uploadProfile = async (req, res) => {
+  console.log(req.file);
+  try {
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        message: "Profile photo is required.",
+      });
+    }
+    const updatedProfile = await User.findByIdAndUpdate(req.user.id, {
+      profile: `/${req.file?.filename}`,
+    });
+    if (updatedProfile) {
+      return res.status(200).json({
+        success: true,
+        message: "Profile uploaded successfully.",
+        uri: `/${req.file?.filename}`,
+      });
+    }
+    return res.status(400).json({
+      success: false,
+      message: "Cannot upload profile due to some technical issues.",
+    });
+  } catch (error) {
+    console.log("Upload Profile Error:", error);
+    res
+      .status(500)
+      .json({ status: false, error: "file upload failed due to : " + error });
+  }
+};
 module.exports = {
   userLogin,
   userRegister,
@@ -325,4 +360,5 @@ module.exports = {
   logoutUser,
   forgotPass,
   resetPassword,
+  uploadProfile,
 };
