@@ -133,8 +133,9 @@ const userRegister = async (req, res) => {
 const logoutUser = async (req, res) => {
   try {
     const { refreshToken } = req.body;
-    if (!refreshToken)
+    if (!refreshToken){
       return res.status(400).json({ message: "Refresh token required." });
+    }
 
     // Remove refresh token from DB
     const user = await User.findOneAndUpdate(
@@ -324,7 +325,7 @@ const resetPassword = async (req, res) => {
 };
 
 const uploadProfile = async (req, res) => {
-  console.log(req.file);
+ 
   try {
     if (!req.file) {
       return res.status(400).json({

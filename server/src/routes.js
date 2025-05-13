@@ -27,7 +27,7 @@ const {
 } = require("../src/controllers/Friends.Controller"); // FRIEND SYSTEM CONTROLLER
 
 const checkLoginMiddleware = require("./middlewares/Login.Middleware");
-const upload = require("../src/middlewares/MulterConfig");
+const {handleSingleImageUpload} = require("../src/middlewares/MulterConfig");
 
 // =========== handle user Login , registration , logout ================
 
@@ -52,7 +52,9 @@ Router.post("/auth/logout", logoutUser);
 // ================ handling user profile image ======================
 
 Router.use(checkLoginMiddleware); // login required routes below
-Router.patch("/user/profileUpload", upload.single("profile"), uploadProfile);
+Router.patch("/user/profileUpload", handleSingleImageUpload, uploadProfile);
+
+
 
 // ==========================friends handler======================
 // { friendid }
