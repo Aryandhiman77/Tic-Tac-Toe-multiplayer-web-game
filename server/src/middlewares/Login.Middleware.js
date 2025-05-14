@@ -1,6 +1,6 @@
 const jwt = require("jsonwebtoken");
 const User = require("../db/modals/User.Model");
-const jwtSecret = process.env.JWT_SECRET || "yourFallbackSecret";
+const jwtSecret = process.env.JWT_SECRET;
 
 module.exports = async function LoginMiddleware(req, res, next) {
   const token = req.header("Authorization")?.split(" ")[1];

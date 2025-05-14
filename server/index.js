@@ -7,12 +7,15 @@ const SocketMiddleware = require("./src/middlewares/Socket.Middleware");
 const User = require("./src/db/modals/User.Model");
 const Friend = require("./src/db/modals/Friend.Model");
 const path = require("path");
-require("./src/db/connection")(); // CALLING DB CONNECTION
-
+const connectDb = require("./src/db/connection"); 
+const GlobalErrorHandler = require('./src/middlewares/GlobalErrorHandler');
 const app = express();
 app.use(express.static(__dirname+path.join('/public/uploads'))); // to serve static files
-app.use(cors());
+app.use(cors({
+  origin:process.env.CORS_ORIGIN,
+}));
 app.use(express.json());
+app.use(GlobalErrorHandler);
 app.use("/api/", Router);
 
 // console.log(process.env.JWT_SECRET);
@@ -32,7 +35,6 @@ const playerSocketMap = {};
 io.on("connection", (socket) => {
   console.log(socket.username, " connected with socket id :", socket.id);
   socket.broadcast.emit("checkOnlineUser", { userid: socket.gameid });
-  console.log(socket.id);
   playerSocketMap[socket.gameid] = socket.id;
 
   console.log(playerSocketMap);
@@ -44,7 +46,7 @@ io.on("connection", (socket) => {
     socket.join(roomId);
     const friendSocket = playerSocketMap[friendgameid];
     // console.log("friend socket", friendSocket);
-    console.log(roomId);
+    console.log("Room created using roomid:"+roomId);
     io.to(friendSocket).emit("liveRoomRequests", {
       roomId,
       friend: {
@@ -102,7 +104,6 @@ io.on("connection", (socket) => {
   let JoinedNode;
 
   socket.on("toss", (roomId) => {
-    console.log(roomId)
     const room = rooms[roomId];
   
     if (!room || room.players.length !== 2) return;
@@ -122,7 +123,6 @@ io.on("connection", (socket) => {
   });
 
   socket.on("updateStatus", async () => {
-    console.log("updating status.");
     const user = await User.findById(socket?.userid);
     user.status = "active";
     await user.save();
@@ -140,7 +140,7 @@ io.on("connection", (socket) => {
 
   socket.on("disconnect", async () => {
     socket.broadcast.emit("checkOfflineUser", { userid: socket.gameid });
-    console.log("User disconnected:", socket.id);
+    console.log(socket.username+" disconnected:", socket.id);
     const user = await User.findById(socket.userid);
     user.status = "inactive";
     user.save();
@@ -164,5 +164,6 @@ io.on("connection", (socket) => {
     }
   });
 });
-
-server.listen(process.env.PORT || 3000, () => console.log("Server running on port 3000"));
+connectDb().then(()=>{
+  server.listen(process.env.PORT || 3000, () => console.log("Server running on port 3000"));
+})

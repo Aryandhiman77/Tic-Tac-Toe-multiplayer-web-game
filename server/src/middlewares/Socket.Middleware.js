@@ -1,6 +1,6 @@
 const jwt = require("jsonwebtoken");
 const { io } = require("socket.io-client");
-const jwtSecret = process.env.JWT_SECRET || "yourFallbackSecret";
+const jwtSecret =process.env.JWT_SECRET;
 const User = require('../db/modals/User.Model');
 module.exports =async function (socket, next) {
   const token = socket.handshake.headers["authorization"]?.split(" ")[1];
