@@ -1,11 +1,14 @@
 const mongoose = require('mongoose');
 
-const mongoDBUrl = 'mongodb://127.0.0.1:27017/TicTacToe'; 
+module.exports = async function connectDb(){
+  try {
+    const mongodbInstance = await mongoose.connect(process.env.MONGODB_URI);
+    console.log('MongoDB connected !',mongodbInstance.connection.host);
+  } catch (error) {
+    console.error('MongoDB connection error:', error);
+    process.exit(1);
+  }
+}
 
-mongoose.connect(mongoDBUrl)
-  .then(() => {
-    console.log('MongoDB connected !');
-  })
-  .catch((err) => {
-    console.error('MongoDB connection error:', err);
-  });
+
+ 
