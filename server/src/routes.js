@@ -24,6 +24,7 @@ const {
   searchFriendById,
   getIncomingRequests,
   withdrawMyRequest,
+  removeFromFriendList
 } = require("../src/controllers/Friends.Controller"); // FRIEND SYSTEM CONTROLLER
 
 const checkLoginMiddleware = require("./middlewares/Login.Middleware");
@@ -73,5 +74,7 @@ Router.post("/friend/req", getFriendRequest);
 Router.post("/friend/search", searchFriendById);
 //incoming friendrequests
 Router.post("/friend/increq", getIncomingRequests);
+
+Router.post("/friend/rem", removeFromFriendList);
 
 module.exports = Router;

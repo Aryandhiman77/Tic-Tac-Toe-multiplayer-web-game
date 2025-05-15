@@ -6,6 +6,7 @@ const jwtSecret =process.env.JWT_SECRET;
 // const mailSender = require("../utils/nodeMailer");
 const crypto = require("crypto");
 const multer = require("multer");
+const ApiError = require("../utils/ApiError");
 const userLogin = async (req, res) => {
   try {
     // 1. CHECKING EXPRESS VALIDATOR ERRORS
@@ -20,6 +21,7 @@ const userLogin = async (req, res) => {
       return res
         .status(400)
         .json({ message: "Email and password are required." });
+        // throw new ApiError(400,"Email and password are required.");
     }
     //3. CHECK IF USER EXISTS WITH PROVIDED EMAIL
     const user = await User.findOne({ email });

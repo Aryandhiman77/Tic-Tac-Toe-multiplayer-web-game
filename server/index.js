@@ -15,8 +15,8 @@ app.use(cors({
   origin:process.env.CORS_ORIGIN,
 }));
 app.use(express.json());
-app.use(GlobalErrorHandler);
 app.use("/api/", Router);
+app.use(GlobalErrorHandler);
 
 // console.log(process.env.JWT_SECRET);
 const server = http.createServer(app);
