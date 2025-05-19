@@ -20,7 +20,7 @@ module.exports = async function LoginMiddleware(req, res, next) {
     }
     next();
   } catch (error) {
-    // 3. IF TOKEN ERROR, THROUGH 404
+    // 3. IF TOKEN ERROR, THROUGH 401
     if (error.name === "TokenExpiredError") {
       return res.status(401).json({ success: false, message: error.name });
     }

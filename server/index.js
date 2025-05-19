@@ -1,6 +1,5 @@
 const express = require("express");
 const http = require("http");
-const { Server } = require("socket.io");
 const cors = require("cors");
 const Router = require("../server/src/routes");
 const SocketMiddleware = require("./src/middlewares/Socket.Middleware");
@@ -37,7 +36,7 @@ io.on("connection", (socket) => {
   socket.broadcast.emit("checkOnlineUser", { userid: socket.gameid });
   playerSocketMap[socket.gameid] = socket.id;
 
-  console.log(playerSocketMap);
+  console.log("Players active on server",playerSocketMap);
 
   socket.on("challengeFriend", (friendgameid) => {
     const roomId = socket.gameid;
@@ -45,7 +44,6 @@ io.on("connection", (socket) => {
     playerRoomMap[socket.id] = roomId;
     socket.join(roomId);
     const friendSocket = playerSocketMap[friendgameid];
-    // console.log("friend socket", friendSocket);
     console.log("Room created using roomid:"+roomId);
     io.to(friendSocket).emit("liveRoomRequests", {
       roomId,
@@ -100,8 +98,6 @@ io.on("connection", (socket) => {
   socket.on("sendMessage", ({ roomId, message }) => {
     io.to(roomId).emit("receiveMessage", message);
   });
-  let Roomhost;
-  let JoinedNode;
 
   socket.on("toss", (roomId) => {
     const room = rooms[roomId];

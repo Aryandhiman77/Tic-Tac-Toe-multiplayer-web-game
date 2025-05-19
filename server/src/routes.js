@@ -77,4 +77,5 @@ Router.post("/friend/increq", getIncomingRequests);
 
 Router.post("/friend/rem", removeFromFriendList);
 
+
 module.exports = Router;

@@ -1,3 +1,4 @@
+// FOR STRUCTURING ERROR RESPONSE
 class ApiError extends Error{
   constructor(statusCode,message,errors=[],stack = ""){
     super(message);

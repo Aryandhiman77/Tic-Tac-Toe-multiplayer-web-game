@@ -1,3 +1,4 @@
+// FOR STRUCTURING API RESPONSE DATA
 class ApiResponse{
     constructor(statusCode,data,message="Something went wrong"){
         this.status = statusCode < 400;

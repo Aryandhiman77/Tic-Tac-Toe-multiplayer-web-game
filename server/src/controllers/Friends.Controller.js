@@ -140,7 +140,7 @@ const rejectFriendRequest = async (req, res) => {
         .status(400)
         .json({
           success: false,
-          message: "Cannot ignore, something went wrong.",
+          message: "Cannot reject, something went wrong.",
         });
     }
   } catch (error) {
