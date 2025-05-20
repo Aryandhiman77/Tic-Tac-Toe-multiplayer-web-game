@@ -21,6 +21,7 @@ module.exports =async function (socket, next) {
     socket.email = userDetails?.email; 
     socket.userid = userDetails?.id; 
     socket.gameid = userDetails?.gameid; 
+    socket.gameid = userDetails?.gameid; 
     socket.profile = userDetails?.profile;
     next();
   } catch (err) {

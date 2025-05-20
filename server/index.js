@@ -44,7 +44,6 @@ io.on("connection", (socket) => {
     playerRoomMap[socket.id] = roomId;
     socket.join(roomId);
     const friendSocket = playerSocketMap[friendgameid];
-    console.log("Room created using roomid:"+roomId);
     io.to(friendSocket).emit("liveRoomRequests", {
       roomId,
       friend: {
