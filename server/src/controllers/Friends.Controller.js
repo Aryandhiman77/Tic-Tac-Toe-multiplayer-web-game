@@ -17,11 +17,12 @@ const sendFriendRequest = async (req, res) => {
       status: "pending",
     });
     const reqToYourSelf = await User.findOne({ gameid: friendid, _id: id });
-    if (reqToYourSelf)
+    if (reqToYourSelf){
       return res
-        .status(400)
-        .json({ success: false, message: "Cannot request youself." });
-
+      .status(400)
+      .json({ success: false, message: "Cannot request youself." });
+    }
+      
     if (existingRequest) {
       return res
         .status(200)
@@ -205,7 +206,6 @@ const getFriendRequest = async (req, res) => {
         },
       },
     ]);
-    console.log(requests);
 
     return res.status(200).json({ success: true, requests });
   } catch (error) {

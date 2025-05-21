@@ -52,7 +52,7 @@ Router.post("/auth/logout", logoutUser);
 
 // ================ handling user profile image ======================
 
-Router.use(checkLoginMiddleware); // login required routes below
+Router.use(checkLoginMiddleware); //? login required routes below
 Router.patch("/user/profileUpload", handleSingleImageUpload, uploadProfile);
 
 
@@ -73,7 +73,7 @@ Router.post("/friend/req", getFriendRequest);
 // { friendid }
 Router.post("/friend/search", searchFriendById);
 
-//incoming friendrequests
+// { friendid }
 Router.post("/friend/increq", getIncomingRequests);
 
 Router.post("/friend/rem", removeFromFriendList);
