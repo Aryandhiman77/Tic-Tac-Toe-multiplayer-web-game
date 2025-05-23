@@ -5,8 +5,6 @@ const User = require("../db/modals/User.Model"); // adjust based on your structu
 const jwtSecret =process.env.JWT_SECRET;
 // const mailSender = require("../utils/nodeMailer");
 const crypto = require("crypto");
-const multer = require("multer");
-const ApiError = require("../utils/ApiError");
 const userLogin = async (req, res) => {
   try {
     // 1. CHECKING EXPRESS VALIDATOR ERRORS
