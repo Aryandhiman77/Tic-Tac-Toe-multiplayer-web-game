@@ -4,7 +4,6 @@ const cors = require("cors");
 const Router = require("../server/src/routes");
 const SocketMiddleware = require("./src/middlewares/Socket.Middleware");
 const User = require("./src/db/modals/User.Model");
-const Friend = require("./src/db/modals/Friend.Model");
 const path = require("path");
 const connectDb = require("./src/db/connection"); 
 const GlobalErrorHandler = require('./src/middlewares/GlobalErrorHandler');

@@ -151,7 +151,6 @@ const logoutUser = async (req, res) => {
     // set user status inactive after logout
     user.status = "inactive";
     await user.save();
-
     return res
       .status(200)
       .json({ success: true, message: "Logged out successfully." });
