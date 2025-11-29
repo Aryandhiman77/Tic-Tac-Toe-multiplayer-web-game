@@ -5,13 +5,15 @@ const Router = require("../server/src/routes");
 const SocketMiddleware = require("./src/middlewares/Socket.Middleware");
 const User = require("./src/db/modals/User.Model");
 const path = require("path");
-const connectDb = require("./src/db/connection"); 
-const GlobalErrorHandler = require('./src/middlewares/GlobalErrorHandler');
+const connectDb = require("./src/db/connection");
+const GlobalErrorHandler = require("./src/middlewares/GlobalErrorHandler");
 const app = express();
-app.use(express.static(__dirname+path.join('/public/uploads'))); // to serve static files
-app.use(cors({
-  origin:process.env.CORS_ORIGIN,
-}));
+app.use(express.static(__dirname + path.join("/public/uploads"))); // to serve static files
+app.use(
+  cors({
+    origin: process.env.CORS_ORIGIN,
+  })
+);
 app.use(express.json());
 app.use("/api/", Router);
 app.use(GlobalErrorHandler);
@@ -35,7 +37,7 @@ io.on("connection", (socket) => {
   socket.broadcast.emit("checkOnlineUser", { userid: socket.gameid });
   playerSocketMap[socket.gameid] = socket.id;
 
-  console.log("Players active on server",playerSocketMap);
+  console.log("Players active on server", playerSocketMap);
 
   socket.on("challengeFriend", (friendgameid) => {
     const roomId = socket.gameid;
@@ -68,30 +70,29 @@ io.on("connection", (socket) => {
       playerRoomMap[socket.id] = roomId;
       socket.join(roomId);
       socket.roomId = roomId;
-  
+
       const hostSocketId = room.players[0]; // the one who created the room
       const hostSocket = io.sockets.sockets.get(hostSocketId);
-  
+
       // Emit to both players
       io.to(roomId).emit("playerJoined", {
         host: {
           username: hostSocket?.username,
           profile: hostSocket?.profile,
-          gameid: hostSocket?.gameid
+          gameid: hostSocket?.gameid,
         },
         joined: {
           username: socket.username,
           profile: socket.profile,
-          gameid: socket.gameid
-        }
+          gameid: socket.gameid,
+        },
       });
-  
+
       callback({ success: true });
     } else {
       callback({ success: false, message: "Room full or not found" });
     }
   });
-  
 
   socket.on("sendMessage", ({ roomId, message }) => {
     io.to(roomId).emit("receiveMessage", message);
@@ -99,18 +100,32 @@ io.on("connection", (socket) => {
 
   socket.on("toss", (roomId) => {
     const room = rooms[roomId];
-  
+
     if (!room || room.players.length !== 2) return;
-  
+
     const randomIndex = Math.floor(Math.random() * 2);
     const winnerSocketId = room.players[randomIndex];
     const winnerSocket = io.sockets.sockets.get(winnerSocketId);
-  
-    const winner = (winnerSocket?.username === rooms[roomId].hostUsername) ? 'Player1' : 'Player2';
-  
+
+    const winner =
+      winnerSocket?.username === rooms[roomId].hostUsername
+        ? "Player1"
+        : "Player2";
+
     io.to(roomId).emit("tossWinner", winner);
   });
-  
+  socket.on("requestRematch", ({ roomId }) => {
+  const newBoard = Array(9).fill("");
+
+  // randomly pick new toss winner
+  const players = ["Player1", "Player2"];
+  const turn = players[Math.floor(Math.random() * 2)];
+
+  io.to(roomId).emit("startRematch", {
+    board: newBoard,
+    turn,
+  });
+});
 
   socket.on("makeMove", ({ roomId, board }) => {
     io.to(roomId).emit("updateBoard", board);
@@ -134,7 +149,7 @@ io.on("connection", (socket) => {
 
   socket.on("disconnect", async () => {
     socket.broadcast.emit("checkOfflineUser", { userid: socket.gameid });
-    console.log(socket.username+" disconnected:", socket.id);
+    console.log(socket.username + " disconnected:", socket.id);
     const user = await User.findById(socket.userid);
     user.status = "inactive";
     user.save();
@@ -158,6 +173,10 @@ io.on("connection", (socket) => {
     }
   });
 });
-connectDb().then(()=>{
-  server.listen(process.env.PORT || 3000, () => console.log("Server running on port 3000"));
-})
+connectDb().then(() => {
+  server.listen(process.env.PORT || 3000, () =>
+    console.log("Server running on port 3000")
+  );
+});
+
+//?problem- system working when both users tap play again

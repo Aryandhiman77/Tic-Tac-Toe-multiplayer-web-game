@@ -9,6 +9,3 @@ module.exports = async function connectDb(){
     process.exit(1);
   }
 }
-
-
- 

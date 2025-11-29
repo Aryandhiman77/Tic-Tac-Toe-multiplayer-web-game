@@ -8,7 +8,7 @@ const {
   forgotPass,
   resetPassword,
   uploadProfile,
-} = require("../src/controllers/User.Controller");  // USER CONTROLLER
+} = require("../src/controllers/User.Controller"); // USER CONTROLLER
 
 const {
   RegistrationValidations,
@@ -24,11 +24,11 @@ const {
   searchFriendById,
   getIncomingRequests,
   withdrawMyRequest,
-  removeFromFriendList
+  removeFromFriendList,
 } = require("../src/controllers/Friends.Controller"); // FRIEND SYSTEM CONTROLLER
 
 const checkLoginMiddleware = require("./middlewares/Login.Middleware");
-const {handleSingleImageUpload} = require("../src/middlewares/MulterConfig");
+const { handleSingleImageUpload } = require("../src/middlewares/MulterConfig");
 
 // =========== handle user Login , registration , logout ================
 
@@ -55,8 +55,6 @@ Router.post("/auth/logout", logoutUser);
 Router.use(checkLoginMiddleware); //? login required routes below
 Router.patch("/user/profileUpload", handleSingleImageUpload, uploadProfile);
 
-
-
 // ==========================friends handler======================
 // { friendid }
 Router.post("/friend/send", sendFriendRequest);
@@ -77,6 +75,5 @@ Router.post("/friend/search", searchFriendById);
 Router.post("/friend/increq", getIncomingRequests);
 
 Router.post("/friend/rem", removeFromFriendList);
-
 
 module.exports = Router;
